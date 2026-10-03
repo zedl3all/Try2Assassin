@@ -1,0 +1,54 @@
+#include "Try2AssassinGameMode.h"
+#include "Try2AssassinGameState.h"
+#include "GameFramework/PlayerState.h"
+
+ATry2AssassinGameMode::ATry2AssassinGameMode()
+{
+	GameStateClass = ATry2AssassinGameState::StaticClass();
+}
+
+void ATry2AssassinGameMode::BeginPlay()
+{
+	Super::BeginPlay();
+	// ชั่วคราวสำหรับทดสอบ: เริ่ม Assassination หลัง 2 วินาที
+	FTimerHandle TH;
+	GetWorldTimerManager().SetTimer(TH, this,
+		&ATry2AssassinGameMode::StartAssassinationPhase, 2.0f, false);
+}
+
+void ATry2AssassinGameMode::StartAssassinationPhase()
+{
+	if (auto* GS = GetGameState<ATry2AssassinGameState>())
+	{
+		GS->SetMatchPhase(EMatchPhase::Assassination);
+	}
+}
+
+void ATry2AssassinGameMode::HandleTargetKilled(AController* Killer)
+{
+	auto* GS = GetGameState<ATry2AssassinGameState>();
+	if (!GS || GS->MatchPhase != EMatchPhase::Assassination) { return; }
+
+	GS->bTargetKilled = true;
+	GS->SetMatchPhase(EMatchPhase::Escape);   // เมืองเข้าสู่ Alert
+}
+
+void ATry2AssassinGameMode::HandleReachedSafeZone(AController* Player)
+{
+	auto* GS = GetGameState<ATry2AssassinGameState>();
+	if (!GS || GS->MatchPhase != EMatchPhase::Escape || !Player) { return; }
+
+	GS->Winner = Player->PlayerState;
+	GS->SetMatchPhase(EMatchPhase::Finished);
+}
+
+void ATry2AssassinGameMode::DebugKillTarget()
+{
+	HandleTargetKilled(nullptr);
+}
+
+void ATry2AssassinGameMode::DebugReachSafeZone()
+{
+	// เอา PlayerController คนแรกมาเป็นผู้ชนะ (ทดสอบเท่านั้น)
+	HandleReachedSafeZone(GetWorld()->GetFirstPlayerController());
+}
