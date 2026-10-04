@@ -2,6 +2,10 @@
 
 
 #include "BaseCharacter.h"
+#include "InputAction.h"
+#include "InputActionValue.h"
+#include "EnhancedInputComponent.h"
+#include "Components/SphereComponent.h"
 #include "Net/UnrealNetwork.h"
 
 // Sets default values
@@ -13,6 +17,15 @@ ABaseCharacter::ABaseCharacter()
 	bReplicates = true;
 	CharacterState = ECharacterState::Normal;
 	bCanBeTakedown = false;
+
+	TakeDownReach = CreateDefaultSubobject<USphereComponent>(TEXT("TakeDownReach"));
+	TakeDownReach->SetupAttachment(GetMesh());
+	TakeDownReach->SetSphereRadius(TakeDownRange);
+	TakeDownReach->SetRelativeLocation(FVector(0, 0, 90));
+	TakeDownReach->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	TakeDownReach->SetCollisionResponseToAllChannels(ECR_Ignore);
+	TakeDownReach->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	TakeDownReach->SetGenerateOverlapEvents(true);
 }
 
 // Called when the game starts or when spawned
@@ -31,6 +44,12 @@ void ABaseCharacter::Tick(float DeltaTime)
 void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	
+	// Cast PlayerInputComponent to UEnhancedInputComponent
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+	{
+		EnhancedInputComponent->BindAction(TakeDownAction, ETriggerEvent::Started, this, &ABaseCharacter::HandleTakedownInput);
+	}
 }
 
 void ABaseCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -40,7 +59,12 @@ void ABaseCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>&
 	DOREPLIFETIME(ABaseCharacter, CharacterState);
 }
 
-void ABaseCharacter::Takedown()
+void ABaseCharacter::HandleTakedownInput(const FInputActionValue& Value)
+{
+	ServerTakedown();
+}
+
+void ABaseCharacter::ApplyTakedown()
 {
 	if (!HasAuthority())
 	{
@@ -54,10 +78,130 @@ void ABaseCharacter::Takedown()
 
 	CharacterState = ECharacterState::Takedown;
 
-	UE_LOG(LogTemp, Warning, TEXT("%s Takedown!"), *GetName());
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("%s was Takedown!"),
+		*GetName()
+	);
 }
 
 void ABaseCharacter::ServerTakedown_Implementation()
 {
-	Takedown();
+	// -------------------------------------------------
+	// Server ตรวจสอบผู้ที่อยู่ในระยะ Takedown
+	// -------------------------------------------------
+
+	if (!TakeDownReach)
+	{
+		return;
+	}
+
+	TArray<AActor*> OverlappingActors;
+	TakeDownReach->GetOverlappingActors(
+		OverlappingActors,
+		ABaseCharacter::StaticClass()
+	);
+
+	const FVector Origin = GetActorLocation();
+	const FVector Forward = GetActorForwardVector();
+
+	const float CosThreshold =
+		FMath::Cos(FMath::DegreesToRadians(TakeDownHalfAngle));
+
+	ABaseCharacter* BestTarget = nullptr;
+	float BestDistance = TakeDownRange;
+
+	// -------------------------------------------------
+	// หา Target ที่เหมาะที่สุด
+	// -------------------------------------------------
+
+	for (AActor* Actor : OverlappingActors)
+	{
+		ABaseCharacter* Target = Cast<ABaseCharacter>(Actor);
+
+		if (!Target || Target == this)
+		{
+			continue;
+		}
+
+		// Target ต้องสามารถโดน Takedown ได้
+		if (!Target->bCanBeTakedown)
+		{
+			continue;
+		}
+
+		// Target ต้องไม่อยู่ใน State ที่ไม่สามารถ Takedown ได้
+		if (Target->CharacterState == ECharacterState::Takedown)
+		{
+			continue;
+		}
+
+		const FVector ToTarget =
+			Target->GetActorLocation() - Origin;
+
+		const float Distance = ToTarget.Size();
+
+		if (Distance > TakeDownRange)
+		{
+			continue;
+		}
+
+		const FVector Direction =
+			ToTarget.GetSafeNormal();
+
+		// ตรวจสอบมุมด้านหน้า
+		const float Dot =
+			FVector::DotProduct(Forward, Direction);
+
+		if (Dot < CosThreshold)
+		{
+			continue;
+		}
+
+		// เลือก Target ที่ใกล้ที่สุด
+		if (Distance < BestDistance)
+		{
+			BestDistance = Distance;
+			BestTarget = Target;
+		}
+	}
+
+	// ไม่มี Target
+	if (!BestTarget)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("%s attempted Takedown but no target was found."),
+			*GetName()
+		);
+
+		return;
+	}
+
+	// -------------------------------------------------
+	// Takedown Target
+	// -------------------------------------------------
+
+	BestTarget->ApplyTakedown();
+	
+	MulticastPlayTakedownAnimation(BestTarget);
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("%s Takedown %s"),
+		*GetName(),
+		*BestTarget->GetName()
+	);
+}
+
+bool ABaseCharacter::ServerTakedown_Validate()
+{
+	return true;
+}	
+
+void ABaseCharacter::MulticastPlayTakedownAnimation_Implementation(ABaseCharacter* Target)
+{
 }

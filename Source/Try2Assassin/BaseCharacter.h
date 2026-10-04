@@ -16,6 +16,10 @@ enum class ECharacterState : uint8
 	Caught
 };
 
+// Forward declarations for Enhanced Input types
+class UInputAction;
+struct FInputActionValue;
+
 UCLASS()
 class TRY2ASSASSIN_API ABaseCharacter : public ACharacter
 {
@@ -30,6 +34,8 @@ protected:
 	virtual void BeginPlay() override;
 	
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
+	void HandleTakedownInput(const FInputActionValue& Value);
 
 public:	
 	// Called every frame
@@ -37,6 +43,8 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	
+	/////////////////////////////////////////////////////////////////
 	
 	// สถานะปัจจุบันของตัวละคร
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Character")
@@ -46,10 +54,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
 	bool bCanBeTakedown;
 	
-	// ใช้เมื่อ Character ถูก Takedown
 	UFUNCTION(BlueprintCallable, Category = "Character")
-	virtual void Takedown();
+	virtual void ApplyTakedown();
 	
-	UFUNCTION(BlueprintCallable, Server, Reliable)
+	// --- client -> server: ---
+	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerTakedown();
+	
+	// --- server -> everyone: play Animation ---
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayTakedownAnimation(ABaseCharacter* Target);
+	
+	/////////////////////////////////////////////////////////////////
+	UPROPERTY(EditAnywhere, Category="TakeDown")
+	float TakeDownRange = 150.f;
+	
+	UPROPERTY(EditAnywhere, Category="TakeDown")
+	float TakeDownHalfAngle = 60.f;
+	
+	UPROPERTY(VisibleAnywhere, Category="TakeDown")
+	class USphereComponent* TakeDownReach;
+	
+	/////////////////////////////////////////////////////////////////
+	UPROPERTY(EditAnywhere, Category="Input")
+	UInputAction* TakeDownAction;
 };
