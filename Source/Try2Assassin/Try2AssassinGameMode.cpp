@@ -1,6 +1,7 @@
 #include "Try2AssassinGameMode.h"
 #include "Try2AssassinGameState.h"
 #include "GameFramework/GameModeBase.h"
+#include "BaseCharacter.h"
 #include "UObject/ConstructorHelpers.h"
 #include "GameFramework/PlayerState.h"
 
@@ -41,7 +42,20 @@ void ATry2AssassinGameMode::HandleTargetKilled(AController* Killer)
 	if (!GS || GS->MatchPhase != EMatchPhase::Assassination) { return; }
 
 	GS->bTargetKilled = true;
-	GS->SetMatchPhase(EMatchPhase::Escape);   // เมืองเข้าสู่ Alert
+
+	if (Killer)
+	{
+		GS->Assassin = Killer->PlayerState;
+
+		// ใช้ enum ของเพื่อน: คนฆ่าเข้าสู่สถานะ Escaping
+		// (CharacterState เป็น public และ replicate อยู่แล้ว ไม่ต้องแก้โค้ดเพื่อน)
+		if (ABaseCharacter* Pawn = Cast<ABaseCharacter>(Killer->GetPawn()))
+		{
+			Pawn->CharacterState = ECharacterState::Escaping;
+		}
+	}
+
+	GS->SetMatchPhase(EMatchPhase::Escape);
 }
 
 void ATry2AssassinGameMode::HandleReachedSafeZone(AController* Player)
@@ -49,8 +63,14 @@ void ATry2AssassinGameMode::HandleReachedSafeZone(AController* Player)
 	auto* GS = GetGameState<ATry2AssassinGameState>();
 	if (!GS || GS->MatchPhase != EMatchPhase::Escape || !Player) { return; }
 
+	// เฉพาะคนฆ่าเท่านั้นที่ชนะได้ (ถ้า Assassin เป็น null คือโหมด debug ให้ผ่าน)
+	if (GS->Assassin && Player->PlayerState != GS->Assassin) { return; }
+
 	GS->Winner = Player->PlayerState;
 	GS->SetMatchPhase(EMatchPhase::Finished);
+
+	UE_LOG(LogTemp, Warning, TEXT("Winner: %s"),
+		Player->PlayerState ? *Player->PlayerState->GetPlayerName() : TEXT("None"));
 }
 
 void ATry2AssassinGameMode::DebugKillTarget()

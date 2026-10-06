@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
 #include "Try2AssassinGameState.generated.h"   // ต้องเป็น include สุดท้ายเสมอ
 
 UENUM(BlueprintType)
@@ -36,6 +37,9 @@ public:
 	// UI / Police AI ผูกกับ event นี้เพื่อรู้ว่า phase เปลี่ยน
 	UPROPERTY(BlueprintAssignable, Category = "Match")
 	FOnMatchPhaseChanged OnMatchPhaseChanged;
+	
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+	TObjectPtr<APlayerState> Assassin = nullptr;
 
 	// เรียกได้เฉพาะบน server (GameMode เป็นคนเรียก)
 	void SetMatchPhase(EMatchPhase NewPhase);

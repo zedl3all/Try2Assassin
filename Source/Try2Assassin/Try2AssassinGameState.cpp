@@ -32,4 +32,5 @@ void ATry2AssassinGameState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ATry2AssassinGameState, MatchPhase);
 	DOREPLIFETIME(ATry2AssassinGameState, bTargetKilled);
 	DOREPLIFETIME(ATry2AssassinGameState, Winner);
+	DOREPLIFETIME(ATry2AssassinGameState, Assassin);
 }

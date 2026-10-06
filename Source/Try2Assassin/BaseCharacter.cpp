@@ -7,6 +7,7 @@
 #include "EnhancedInputComponent.h"
 #include "Components/SphereComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "Try2AssassinGameMode.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -185,6 +186,15 @@ void ABaseCharacter::ServerTakedown_Implementation()
 	// -------------------------------------------------
 
 	BestTarget->ApplyTakedown();
+	
+	if (BestTarget->CharacterState == ECharacterState::Takedown
+		&& BestTarget->ActorHasTag(TEXT("MainTarget")))
+	{
+		if (ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
+		{
+			GM->HandleTargetKilled(GetController());
+		}
+	}
 	
 	MulticastPlayTakedownAnimation(BestTarget);
 
