@@ -7,6 +7,8 @@
 #include "EnhancedInputComponent.h"
 #include "Components/SphereComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "TimerManager.h"
 #include "Try2AssassinGameMode.h"
 
 // Sets default values
@@ -45,11 +47,12 @@ void ABaseCharacter::Tick(float DeltaTime)
 void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-	
+
 	// Cast PlayerInputComponent to UEnhancedInputComponent
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		EnhancedInputComponent->BindAction(TakeDownAction, ETriggerEvent::Started, this, &ABaseCharacter::HandleTakedownInput);
+		EnhancedInputComponent->BindAction(TakeDownAction, ETriggerEvent::Started, this,
+		                                   &ABaseCharacter::HandleTakedownInput);
 	}
 }
 
@@ -83,6 +86,16 @@ void ABaseCharacter::ApplyTakedown()
 		LogTemp,
 		Warning,
 		TEXT("%s was Takedown!"),
+		*GetName()
+	);
+}
+
+void ABaseCharacter::OnTakedownHit()
+{
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("%s Takedown Hit!"),
 		*GetName()
 	);
 }
@@ -185,8 +198,40 @@ void ABaseCharacter::ServerTakedown_Implementation()
 	// Takedown Target
 	// -------------------------------------------------
 
+	//หัน Attacker ไปหา Target
+	FVector Direction =
+		BestTarget->GetActorLocation() - GetActorLocation();
+
+	Direction.Z = 0.0f;
+
+	FRotator TargetRotation =
+		Direction.Rotation();
+
+	SetActorRotation(TargetRotation);
+
+	//หัน Target กลับมาหา Attacker
+	FVector TargetDirection =
+		GetActorLocation() - BestTarget->GetActorLocation();
+
+	TargetDirection.Z = 0.0f;
+
+	BestTarget->SetActorRotation(
+		TargetDirection.Rotation()
+	);
+
+	//จัดตำแหน่ง Target
+	FVector NewForWard = GetActorForwardVector();
+	FVector NewTargetLocation =
+		GetActorLocation()
+		+ NewForWard * TakedownAnimationDistance;
+	BestTarget->SetActorLocation(
+		NewTargetLocation,
+		false
+	);
+
+	// เริ่ม TakeDown
 	BestTarget->ApplyTakedown();
-	
+
 	if (BestTarget->CharacterState == ECharacterState::Takedown
 		&& BestTarget->ActorHasTag(TEXT("MainTarget")))
 	{
@@ -195,8 +240,49 @@ void ABaseCharacter::ServerTakedown_Implementation()
 			GM->HandleTargetKilled(GetController());
 		}
 	}
-	
-	MulticastPlayTakedownAnimation(BestTarget);
+
+	//Lock Movement
+	GetCharacterMovement()->DisableMovement();
+	BestTarget->GetCharacterMovement()->DisableMovement();
+
+	MulticastPlayTakedownAnimation(
+		BestTarget,
+		GetActorRotation(),
+		BestTarget->GetActorRotation()
+	);
+	MulticastPlayHitFX(BestTarget->GetActorLocation());
+
+	// Destroy Target ตอนถึงจังหวะโดน
+	FTimerHandle DestroyTimerHandle;
+
+	GetWorldTimerManager().SetTimer(
+		DestroyTimerHandle,
+		[BestTarget]()
+		{
+			if (IsValid(BestTarget))
+			{
+				BestTarget->Destroy();
+			}
+		},
+		1.20f,
+		false
+	);
+
+	// รอจน Animation ของ Attacker เล่นจบ
+	FTimerHandle MovementTimerHandle;
+
+	GetWorldTimerManager().SetTimer(
+		MovementTimerHandle,
+		[this]()
+		{
+			if (IsValid(this) && GetCharacterMovement())
+			{
+				GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+			}
+		},
+		3.67f,
+		false
+	);
 
 	UE_LOG(
 		LogTemp,
@@ -210,8 +296,29 @@ void ABaseCharacter::ServerTakedown_Implementation()
 bool ABaseCharacter::ServerTakedown_Validate()
 {
 	return true;
-}	
+}
 
-void ABaseCharacter::MulticastPlayTakedownAnimation_Implementation(ABaseCharacter* Target)
+void ABaseCharacter::MulticastPlayTakedownAnimation_Implementation(
+	ABaseCharacter* Target,
+	FRotator AttackerRotation,
+	FRotator TargetRotation)
+{
+	// หัน Attacker
+	SetActorRotation(AttackerRotation);
+
+	// หัน Victim
+	if (Target)
+	{
+		Target->SetActorRotation(TargetRotation);
+	}
+
+	// เล่น Animation ของ Attacker
+	if (TakedownMontage)
+	{
+		PlayAnimMontage(TakedownMontage);
+	}
+}
+
+void ABaseCharacter::MulticastPlayHitFX_Implementation(FVector HitLocation)
 {
 }
