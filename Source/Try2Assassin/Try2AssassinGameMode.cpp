@@ -7,12 +7,14 @@
 #include "UObject/SoftObjectPath.h"
 #include "NavigationSystem.h"
 #include "VillagerCharacter.h"
+#include "TargetCharacter.h"
 #include "GameFramework/PlayerState.h"
 
 ATry2AssassinGameMode::ATry2AssassinGameMode()
 {
 	GameStateClass = ATry2AssassinGameState::StaticClass();
 
+	// Load Village
 	FSoftClassPath ClassPath(
 		TEXT("/Game/MyAsset/AI/BP_Villager.BP_Villager_C")
 	);
@@ -27,6 +29,27 @@ ATry2AssassinGameMode::ATry2AssassinGameMode()
 	{
 		UE_LOG(LogTemp, Error,
 		       TEXT("Cannot load BP_Villager. Check parent class and asset path."));
+	}
+
+	// Load Target
+	FSoftClassPath TargetClassPath(
+		TEXT("/Game/MyAsset/AI/BP_Target.BP_Target_C")
+	);
+
+	UClass* LoadedTargetClass =
+		TargetClassPath.TryLoadClass<ATargetCharacter>();
+
+	if (LoadedTargetClass)
+	{
+		TargetClass = LoadedTargetClass;
+	}
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("Failed to load BP_Target")
+		);
 	}
 
 	// เปลี่ยน Default Actor เป็น ตัวที่สร้าง
@@ -44,8 +67,7 @@ void ATry2AssassinGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Spawn Village in Nav Mesh
-	if (HasAuthority() && VillagerClass)
+	if (HasAuthority())
 	{
 		UNavigationSystemV1* NavSystem =
 			FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
@@ -55,7 +77,40 @@ void ATry2AssassinGameMode::BeginPlay()
 			const FVector Center = FVector(0.f, 0.f, 0.f);
 			const float SpawnRadius = 3000.f;
 
-			for (int32 i = 0; i < VillagerCount; ++i)
+			// Spawn Villagers
+			if (VillagerClass)
+			{
+				for (int32 i = 0; i < VillagerCount; ++i)
+				{
+					FNavLocation RandomLocation;
+
+					const bool bFoundLocation =
+						NavSystem->GetRandomReachablePointInRadius(
+							Center,
+							SpawnRadius,
+							RandomLocation
+						);
+
+					if (bFoundLocation)
+					{
+						FVector SpawnLocation = RandomLocation.Location;
+						SpawnLocation.Z += 30.0f;
+
+						SpawnVillager(VillagerClass, SpawnLocation);
+					}
+					else
+					{
+						UE_LOG(
+							LogTemp,
+							Warning,
+							TEXT("Could not find NavMesh location for Villager")
+						);
+					}
+				}
+			}
+
+			// Spawn Target (1 ตัว)
+			if (bSpawnTarget && TargetClass)
 			{
 				FNavLocation RandomLocation;
 
@@ -70,15 +125,15 @@ void ATry2AssassinGameMode::BeginPlay()
 				{
 					FVector SpawnLocation = RandomLocation.Location;
 					SpawnLocation.Z += 30.0f;
-					
-					SpawnVillager(VillagerClass, SpawnLocation);
+
+					SpawnTarget(TargetClass, SpawnLocation);
 				}
 				else
 				{
 					UE_LOG(
 						LogTemp,
 						Warning,
-						TEXT("Could not find random NavMesh location")
+						TEXT("Could not find NavMesh location for Target")
 					);
 				}
 			}
@@ -173,4 +228,29 @@ void ATry2AssassinGameMode::SpawnVillager(
 		FRotator::ZeroRotator,
 		SpawnParams
 	);
+}
+
+void ATry2AssassinGameMode::SpawnTarget(TSubclassOf<ATargetCharacter> InTargetClass, const FVector& SpawnLocation)
+{
+	if (!HasAuthority() || !InTargetClass)
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride =
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	ATargetCharacter* SpawnedTarget =
+		GetWorld()->SpawnActor<ATargetCharacter>(
+			InTargetClass,
+			SpawnLocation,
+			FRotator::ZeroRotator,
+			SpawnParams
+		);
+
+	if (SpawnedTarget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Target Spawned!"));
+	}
 }

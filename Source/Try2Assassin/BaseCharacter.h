@@ -37,6 +37,10 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	void HandleTakedownInput(const FInputActionValue& Value);
+	
+	// ตัวละครนี้สามารถถูก Takedown ได้หรือไม่
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
+	bool bCanBeTakedown = false;
 
 public:
 	// Called every frame
@@ -50,10 +54,6 @@ public:
 	// สถานะปัจจุบันของตัวละคร
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Character")
 	ECharacterState CharacterState;
-
-	// ตัวละครนี้สามารถถูก Takedown ได้หรือไม่
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
-	bool bCanBeTakedown;
 
 	UFUNCTION(BlueprintCallable, Category = "Character")
 	virtual void ApplyTakedown();

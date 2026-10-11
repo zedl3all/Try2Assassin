@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "TargetCharacter.h"
 #include "VillagerCharacter.h"
 #include "Try2AssassinGameMode.generated.h"
 
@@ -36,6 +37,11 @@ public:
 		const FVector& SpawnLocation
 	);
 
+	void SpawnTarget(
+		TSubclassOf<ATargetCharacter> InTargetClass,
+		const FVector& SpawnLocation
+	);
+
 private:
 	void StartAssassinationPhase();
 
@@ -44,4 +50,10 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "AI")
 	int32 VillagerCount = 30;
+
+	UPROPERTY(EditDefaultsOnly, Category = "AI")
+	TSubclassOf<ATargetCharacter> TargetClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "AI")
+	bool bSpawnTarget = true;
 };
