@@ -5,11 +5,14 @@
 #include "VillagerCharacter.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Engine/TargetPoint.h"
+#include "Kismet/GameplayStatics.h"
 
 void AMyAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
+	// Check BehaviorTree if exit
 	if (!IsValid(BehaviorTreeAsset))
 	{
 		UE_LOG(LogTemp, Warning,
@@ -17,6 +20,7 @@ void AMyAIController::OnPossess(APawn* InPawn)
 		return;
 	}
 
+	// Check Blackboard if exit
 	UBlackboardComponent* BlackboardComp = nullptr;
 
 	if (!UseBlackboard(
@@ -28,14 +32,28 @@ void AMyAIController::OnPossess(APawn* InPawn)
 		return;
 	}
 
+	// Get TargetPoints
+	TArray<AActor*> FoundTargetPoints;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ATargetPoint::StaticClass(),
+		FoundTargetPoints
+	);
+
 	AVillagerCharacter* Villager = Cast<AVillagerCharacter>(InPawn);
 
-	if (Villager && IsValid(Villager->InitialTargetPoint))
+	if (Villager)
 	{
-		BlackboardComp->SetValueAsVector(
-			TEXT("TargetLocation"),
-			Villager->InitialTargetPoint->GetActorLocation()
-		);
+		Villager->PatrolPoints.Reset();
+
+		for (AActor* Point : FoundTargetPoints)
+		{
+			if (IsValid(Point))
+			{
+				Villager->PatrolPoints.Add(Point);
+			}
+		}
 	}
 
 	RunBehaviorTree(BehaviorTreeAsset);
