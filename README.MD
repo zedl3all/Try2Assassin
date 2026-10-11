@@ -52,4 +52,4 @@
 
 1. Clone repository นี้ลงในเครื่องของคุณ:
    ```bash
-   git clone [https://github.com/your-username/your-repo-name.git](https://github.com/your-username/your-repo-name.git)
+   git clone https://github.com/zedl3all/Try2Assassin
