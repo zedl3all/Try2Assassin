@@ -162,24 +162,62 @@ void ATry2AssassinGameMode::StartAssassinationPhase()
 
 void ATry2AssassinGameMode::HandleTargetKilled(AController* Killer)
 {
-	auto* GS = GetGameState<ATry2AssassinGameState>();
-	if (!GS || GS->MatchPhase != EMatchPhase::Assassination) { return; }
+	if (!HasAuthority())
+	{
+		return;
+	}
 
-	GS->bTargetKilled = true;
+	ATry2AssassinGameState* GS = GetGameState<ATry2AssassinGameState>();
+	if (!GS)
+	{
+		return;
+	}
+
+	if (GS->MatchPhase != EMatchPhase::Assassination)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("HandleTargetKilled rejected: MatchPhase is not Assassination")
+		);
+		return;
+	}
+
+	if (GS->bTargetKilled)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("HandleTargetKilled rejected: Target already killed")
+		);
+		return;
+	}
+
+	APlayerState* KillerPlayerState = nullptr;
 
 	if (Killer)
 	{
-		GS->Assassin = Killer->PlayerState;
-
-		// ใช้ enum ของเพื่อน: คนฆ่าเข้าสู่สถานะ Escaping
-		// (CharacterState เป็น public และ replicate อยู่แล้ว ไม่ต้องแก้โค้ดเพื่อน)
-		if (ABaseCharacter* Pawn = Cast<ABaseCharacter>(Killer->GetPawn()))
-		{
-			Pawn->CharacterState = ECharacterState::Escaping;
-		}
+		KillerPlayerState = Killer->GetPlayerState<APlayerState>();
 	}
 
-	GS->SetMatchPhase(EMatchPhase::Escape);
+	if (!KillerPlayerState)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("HandleTargetKilled rejected: KillerPlayerState is NULL")
+		);
+		return;
+	}
+
+	// คนฆ่าเข้าสู่สถานะ Escaping
+	if (ABaseCharacter* Pawn = Cast<ABaseCharacter>(Killer->GetPawn()))
+	{
+		Pawn->CharacterState = ECharacterState::Escaping;
+	}
+
+	// ให้ GameState เป็นคนจัดการกฎเกมและเปลี่ยน Phase
+	GS->OnTargetKilled(KillerPlayerState);
 }
 
 void ATry2AssassinGameMode::HandleReachedSafeZone(AController* Player)
@@ -199,7 +237,20 @@ void ATry2AssassinGameMode::HandleReachedSafeZone(AController* Player)
 
 void ATry2AssassinGameMode::DebugKillTarget()
 {
-	HandleTargetKilled(nullptr);
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+
+	if (PC)
+	{
+		HandleTargetKilled(PC);
+	}
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("DebugKillTarget: No PlayerController")
+		);
+	}
 }
 
 void ATry2AssassinGameMode::DebugReachSafeZone()
@@ -251,6 +302,8 @@ void ATry2AssassinGameMode::SpawnTarget(TSubclassOf<ATargetCharacter> InTargetCl
 
 	if (SpawnedTarget)
 	{
+		SpawnedTarget->Tags.Add(TEXT("MainTarget"));
+
 		UE_LOG(LogTemp, Warning, TEXT("Target Spawned!"));
 	}
 }

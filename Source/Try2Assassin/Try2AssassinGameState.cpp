@@ -8,7 +8,7 @@ ATry2AssassinGameState::ATry2AssassinGameState()
 
 void ATry2AssassinGameState::SetMatchPhase(EMatchPhase NewPhase)
 {
-	if (!HasAuthority()) { return; }          // กฎ Lab 5: เปลี่ยนค่าได้เฉพาะ server
+	if (!HasAuthority()) { return; } // กฎ Lab 5: เปลี่ยนค่าได้เฉพาะ server
 	if (MatchPhase == NewPhase) { return; }
 
 	const EMatchPhase Old = MatchPhase;
@@ -21,7 +21,7 @@ void ATry2AssassinGameState::SetMatchPhase(EMatchPhase NewPhase)
 void ATry2AssassinGameState::OnRep_MatchPhase(EMatchPhase OldPhase)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Phase changed: %d -> %d"),
-		(int32)OldPhase, (int32)MatchPhase);
+	       (int32)OldPhase, (int32)MatchPhase);
 	OnMatchPhaseChanged.Broadcast(OldPhase, MatchPhase);
 }
 
@@ -33,4 +33,44 @@ void ATry2AssassinGameState::GetLifetimeReplicatedProps(
 	DOREPLIFETIME(ATry2AssassinGameState, bTargetKilled);
 	DOREPLIFETIME(ATry2AssassinGameState, Winner);
 	DOREPLIFETIME(ATry2AssassinGameState, Assassin);
+}
+
+void ATry2AssassinGameState::OnTargetKilled(APlayerState* Killer)
+{
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("OnTargetKilled CALLED! Killer = %s"),
+		Killer ? *Killer->GetPlayerName() : TEXT("NULL")
+	);
+
+	if (!HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Rejected: No Authority"));
+		return;
+	}
+
+	if (bTargetKilled)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Rejected: Target already killed"));
+		return;
+	}
+
+	if (!Killer)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Rejected: Killer is NULL"));
+		return;
+	}
+
+	bTargetKilled = true;
+	Assassin = Killer;
+
+	SetMatchPhase(EMatchPhase::Escape);
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Target killed by: %s"),
+		*Killer->GetPlayerName()
+	);
 }

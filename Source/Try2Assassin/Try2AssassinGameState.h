@@ -9,13 +9,13 @@ UENUM(BlueprintType)
 enum class EMatchPhase : uint8
 {
 	WaitingToStart,
-	Assassination,   // ตามหาและฆ่าเป้าหมาย
-	Escape,          // เมือง Alert แล้ว หนีตำรวจไป Safe Zone
+	Assassination, // ตามหาและฆ่าเป้าหมาย
+	Escape, // เมือง Alert แล้ว หนีตำรวจไป Safe Zone
 	Finished
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMatchPhaseChanged,
-	EMatchPhase, OldPhase, EMatchPhase, NewPhase);
+                                             EMatchPhase, OldPhase, EMatchPhase, NewPhase);
 
 UCLASS()
 class TRY2ASSASSIN_API ATry2AssassinGameState : public AGameStateBase
@@ -37,7 +37,7 @@ public:
 	// UI / Police AI ผูกกับ event นี้เพื่อรู้ว่า phase เปลี่ยน
 	UPROPERTY(BlueprintAssignable, Category = "Match")
 	FOnMatchPhaseChanged OnMatchPhaseChanged;
-	
+
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
 	TObjectPtr<APlayerState> Assassin = nullptr;
 
@@ -49,4 +49,6 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	void OnTargetKilled(APlayerState* Killer);
 };

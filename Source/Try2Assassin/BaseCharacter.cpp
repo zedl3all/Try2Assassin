@@ -70,12 +70,7 @@ void ABaseCharacter::HandleTakedownInput(const FInputActionValue& Value)
 
 void ABaseCharacter::ApplyTakedown()
 {
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	if (!bCanBeTakedown)
+	if (!HasAuthority() || !bCanBeTakedown)
 	{
 		return;
 	}
@@ -85,7 +80,7 @@ void ABaseCharacter::ApplyTakedown()
 	UE_LOG(
 		LogTemp,
 		Warning,
-		TEXT("%s was Takedown!"),
+		TEXT("%s Takedown!"),
 		*GetName()
 	);
 }
@@ -235,9 +230,20 @@ void ABaseCharacter::ServerTakedown_Implementation()
 	if (BestTarget->CharacterState == ECharacterState::Takedown
 		&& BestTarget->ActorHasTag(TEXT("MainTarget")))
 	{
-		if (ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
+		if (AController* KillerController = GetController())
 		{
-			GM->HandleTargetKilled(GetController());
+			if (ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
+			{
+				GM->HandleTargetKilled(KillerController);
+			}
+		}
+		else
+		{
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("ServerTakedown: KillerController is NULL")
+			);
 		}
 	}
 
