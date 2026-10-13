@@ -2,7 +2,7 @@
 
 
 #include "MyAIController.h"
-#include "VillagerCharacter.h"
+#include "BaseCharacter.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Engine/TargetPoint.h"
@@ -12,46 +12,37 @@ void AMyAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	// Check BehaviorTree if exit
 	if (!IsValid(BehaviorTreeAsset))
 	{
-		UE_LOG(LogTemp, Warning,
-		       TEXT("MyAIController: BehaviorTreeAsset is missing"));
+		UE_LOG(LogTemp, Warning, TEXT("MyAIController: BehaviorTreeAsset is missing"));
 		return;
 	}
 
-	// Check Blackboard if exit
 	UBlackboardComponent* BlackboardComp = nullptr;
-
-	if (!UseBlackboard(
-		BehaviorTreeAsset->BlackboardAsset,
-		BlackboardComp))
+	if (!UseBlackboard(BehaviorTreeAsset->BlackboardAsset, BlackboardComp))
 	{
-		UE_LOG(LogTemp, Warning,
-		       TEXT("MyAIController: Failed to initialize Blackboard"));
+		UE_LOG(LogTemp, Warning, TEXT("MyAIController: Failed to initialize Blackboard"));
 		return;
 	}
 
-	// Get TargetPoints
+	// หา TargetPoints ทั้งหมดในแมพ
 	TArray<AActor*> FoundTargetPoints;
-
 	UGameplayStatics::GetAllActorsOfClass(
 		GetWorld(),
 		ATargetPoint::StaticClass(),
 		FoundTargetPoints
 	);
-
-	AVillagerCharacter* Villager = Cast<AVillagerCharacter>(InPawn);
-
-	if (Villager)
+	
+	
+	ABaseCharacter* BasePawn = Cast<ABaseCharacter>(InPawn);
+	if (BasePawn)
 	{
-		Villager->PatrolPoints.Reset();
-
+		BasePawn->PatrolPoints.Reset();
 		for (AActor* Point : FoundTargetPoints)
 		{
 			if (IsValid(Point))
 			{
-				Villager->PatrolPoints.Add(Point);
+				BasePawn->PatrolPoints.Add(Point);
 			}
 		}
 	}

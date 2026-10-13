@@ -6,8 +6,11 @@
 #include "VillagerCharacter.h"
 #include "UObject/SoftObjectPath.h"
 #include "NavigationSystem.h"
-#include "VillagerCharacter.h"
 #include "TargetCharacter.h"
+#include "GuardCharacter.h"
+#include "GuardAIController.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerState.h"
 
 ATry2AssassinGameMode::ATry2AssassinGameMode()
@@ -49,6 +52,27 @@ ATry2AssassinGameMode::ATry2AssassinGameMode()
 			LogTemp,
 			Error,
 			TEXT("Failed to load BP_Target")
+		);
+	}
+
+	// Load Guard
+	FSoftClassPath GuardClassPath(
+		TEXT("/Game/MyAsset/AI/BP_Guard.BP_Guard_C")
+	);
+
+	UClass* LoadedGuardClass =
+		GuardClassPath.TryLoadClass<AGuardCharacter>();
+
+	if (LoadedGuardClass)
+	{
+		GuardClass = LoadedGuardClass;
+	}
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("Failed to load BP_Guard")
 		);
 	}
 
@@ -104,6 +128,38 @@ void ATry2AssassinGameMode::BeginPlay()
 							LogTemp,
 							Warning,
 							TEXT("Could not find NavMesh location for Villager")
+						);
+					}
+				}
+			}
+
+			//spawn Guard
+			if (GuardClass)
+			{
+				for (int32 i = 0; i < GuardCount; ++i)
+				{
+					FNavLocation RandomLocation;
+
+					const bool bFoundLocation =
+						NavSystem->GetRandomReachablePointInRadius(
+							Center,
+							SpawnRadius,
+							RandomLocation
+						);
+
+					if (bFoundLocation)
+					{
+						FVector SpawnLocation = RandomLocation.Location;
+						SpawnLocation.Z += 30.0f;
+
+						SpawnGuard(GuardClass, SpawnLocation);
+					}
+					else
+					{
+						UE_LOG(
+							LogTemp,
+							Warning,
+							TEXT("Could not find NavMesh location for Guard")
 						);
 					}
 				}
@@ -218,6 +274,11 @@ void ATry2AssassinGameMode::HandleTargetKilled(AController* Killer)
 
 	// ให้ GameState เป็นคนจัดการกฎเกมและเปลี่ยน Phase
 	GS->OnTargetKilled(KillerPlayerState);
+
+	APawn* KillerPawn = Killer->GetPawn();
+	const FVector KillLocation = KillerPawn ? KillerPawn->GetActorLocation() : FVector::ZeroVector;
+
+	AlertAllGuards(KillerPawn, KillLocation);
 }
 
 void ATry2AssassinGameMode::HandleReachedSafeZone(AController* Player)
@@ -306,4 +367,90 @@ void ATry2AssassinGameMode::SpawnTarget(TSubclassOf<ATargetCharacter> InTargetCl
 
 		UE_LOG(LogTemp, Warning, TEXT("Target Spawned!"));
 	}
+}
+
+void ATry2AssassinGameMode::SpawnGuard(TSubclassOf<AGuardCharacter> InGuardClass, const FVector& SpawnLocation)
+{
+	if (!HasAuthority() || !InGuardClass)
+	{
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride =
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	AGuardCharacter* NewGuard = GetWorld()->SpawnActor<AGuardCharacter>(
+		InGuardClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams
+	);
+
+	if (NewGuard)
+	{
+		GuardActors.Add(NewGuard); // ⬅️ เก็บไว้
+		UE_LOG(LogTemp, Warning,
+		       TEXT("Guard Spawned (%d total)"), GuardActors.Num());
+	}
+}
+
+
+void ATry2AssassinGameMode::AlertAllGuards(AActor* HuntTarget, const FVector& AlertLocation)
+{
+	if (!HasAuthority() || !IsValid(HuntTarget))
+	{
+		return;
+	}
+
+	float DelaySeconds = 3.7f; // ⏱️ กำหนดเวลาหน่วงตรงนี้
+
+	// ใช้ Lambda ร่วมกับ FTimerDelegate เพื่อส่งตัวแปร HuntTarget เข้าไปด้วย
+	FTimerHandle AlertTimerHandle;
+	FTimerDelegate AlertDelegate;
+	AlertDelegate.BindUObject(this, &ATry2AssassinGameMode::ExecuteAlertAllGuards, HuntTarget);
+
+	GetWorldTimerManager().SetTimer(
+		AlertTimerHandle,
+		AlertDelegate,
+		DelaySeconds,
+		false // เล่นครั้งเดียว ไม่วนลูป
+	);
+
+	UE_LOG(LogTemp, Warning, TEXT("Target killed! Guards will be alerted in %.1f seconds..."), DelaySeconds);
+}
+
+void ATry2AssassinGameMode::ExecuteAlertAllGuards(AActor* HuntTarget)
+{
+	if (!HasAuthority() || !IsValid(HuntTarget))
+	{
+		return;
+	}
+
+	TArray<AActor*> FoundGuards;
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		AGuardCharacter::StaticClass(),
+		FoundGuards
+	);
+
+	int32 AlertedCount = 0;
+	for (AActor* Actor : FoundGuards)
+	{
+		AGuardCharacter* Guard = Cast<AGuardCharacter>(Actor);
+		if (!IsValid(Guard)) { continue; }
+
+		// เพิ่มความเร็วให้ Guard เปลี่ยนเป็นวิ่ง
+		if (Guard->GetCharacterMovement())
+		{
+			Guard->GetCharacterMovement()->MaxWalkSpeed = 600.0f;
+		}
+
+		AGuardAIController* GuardAI = Cast<AGuardAIController>(Guard->GetController());
+		if (!GuardAI) { continue; }
+
+		GuardAI->HuntPlayer(HuntTarget);
+		++AlertedCount;
+	}
+
+	UE_LOG(LogTemp, Warning,
+	       TEXT("CITY ALERT! %d guards hunting %s"),
+	       AlertedCount, *HuntTarget->GetName());
 }

@@ -37,7 +37,7 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
 	void HandleTakedownInput(const FInputActionValue& Value);
-	
+
 	// ตัวละครนี้สามารถถูก Takedown ได้หรือไม่
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
 	bool bCanBeTakedown = false;
@@ -103,4 +103,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Takedown")
 	UAnimMontage* TakedownReactionMontage;
+
+	// AI Patrol
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI")
+	TArray<AActor*> PatrolPoints;
+
+	// เก็บ Index ของจุด Patrol ล่าสุด (เพื่อไม่ให้สุ่มซ้ำจุดเดิม)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
+	int32 LastPatrolPointIndex = -1;
 };
