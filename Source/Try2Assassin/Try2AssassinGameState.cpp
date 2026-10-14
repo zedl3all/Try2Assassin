@@ -1,5 +1,10 @@
 #include "Try2AssassinGameState.h"
 #include "Net/UnrealNetwork.h"
+#include "BaseCharacter.h"
+#include "VillagerCharacter.h"
+#include "AIController.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 ATry2AssassinGameState::ATry2AssassinGameState()
 {
@@ -13,6 +18,8 @@ void ATry2AssassinGameState::SetMatchPhase(EMatchPhase NewPhase)
 
 	const EMatchPhase Old = MatchPhase;
 	MatchPhase = NewPhase;
+	
+	ApplyPhaseToWorld(NewPhase);
 
 	// OnRep ไม่ทำงานบน server (กฎ Lab 5) จึงต้องเรียกเองให้ host เห็นด้วย
 	OnRep_MatchPhase(Old);
@@ -73,4 +80,40 @@ void ATry2AssassinGameState::OnTargetKilled(APlayerState* Killer)
 		TEXT("Target killed by: %s"),
 		*Killer->GetPlayerName()
 	);
+}
+void ATry2AssassinGameState::ApplyPhaseToWorld(EMatchPhase NewPhase)
+{
+	if (!HasAuthority()) { return; }
+
+	TArray<AActor*> Chars;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseCharacter::StaticClass(), Chars);
+
+	for (AActor* A : Chars)
+	{
+		ABaseCharacter* C = Cast<ABaseCharacter>(A);
+		if (!IsValid(C) || !C->GetCharacterMovement()) { continue; }
+
+		switch (NewPhase)
+		{
+		case EMatchPhase::Escape:
+			// ชาวบ้านตกใจ: เร็วขึ้น (ค่าตัวอย่าง ปรับตามที่คุยกับเพื่อน)
+			if (C->IsA<AVillagerCharacter>())
+			{
+				C->GetCharacterMovement()->MaxWalkSpeed = 450.f;
+			}
+			break;
+
+		case EMatchPhase::Finished:
+			// จบเกม: ทุกตัวหยุดเดิน
+			C->GetCharacterMovement()->DisableMovement();
+			if (AAIController* AI = Cast<AAIController>(C->GetController()))
+			{
+				AI->StopMovement();
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
 }

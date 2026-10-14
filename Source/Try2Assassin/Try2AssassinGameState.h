@@ -51,4 +51,7 @@ public:
 		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	void OnTargetKilled(APlayerState* Killer);
+private:
+	// ปรับ Pawn ในโลกตาม phase (server เท่านั้น)
+	void ApplyPhaseToWorld(EMatchPhase NewPhase);
 };
