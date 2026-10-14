@@ -3,6 +3,7 @@
 #include "BaseCharacter.h"
 #include "VillagerCharacter.h"
 #include "AIController.h"
+#include "Try2AssassinGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -96,15 +97,14 @@ void ATry2AssassinGameState::ApplyPhaseToWorld(EMatchPhase NewPhase)
 		switch (NewPhase)
 		{
 		case EMatchPhase::Escape:
-			// ชาวบ้านตกใจ: เร็วขึ้น (ค่าตัวอย่าง ปรับตามที่คุยกับเพื่อน)
-			if (C->IsA<AVillagerCharacter>())
+			// ชาวบ้านตกใจ: วิ่งหนีไป EscapeZone ที่ใกล้ที่สุด
+			if (AVillagerCharacter* Villager = Cast<AVillagerCharacter>(C))
 			{
-				C->GetCharacterMovement()->MaxWalkSpeed = 450.f;
+				Villager->StartPanicEscape(450.f);
 			}
 			break;
 
 		case EMatchPhase::Finished:
-			// จบเกม: ทุกตัวหยุดเดิน
 			C->GetCharacterMovement()->DisableMovement();
 			if (AAIController* AI = Cast<AAIController>(C->GetController()))
 			{

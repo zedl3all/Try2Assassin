@@ -7,6 +7,13 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Engine/TargetPoint.h"
 #include "Kismet/GameplayStatics.h"
+#include "BehaviorTree/BehaviorTreeComponent.h"
+#include "Navigation/PathFollowingComponent.h"
+
+AMyAIController::AMyAIController(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
 
 void AMyAIController::OnPossess(APawn* InPawn)
 {
@@ -48,4 +55,20 @@ void AMyAIController::OnPossess(APawn* InPawn)
 	}
 
 	RunBehaviorTree(BehaviorTreeAsset);
+}
+
+void AMyAIController::StartEscape(AActor* EscapeTarget)
+{
+	if (!IsValid(EscapeTarget)) { return; }
+
+	// หยุด BT ไม่ให้มาสั่งเดินสุ่มทับ
+	if (UBehaviorTreeComponent* BTComp = Cast<UBehaviorTreeComponent>(BrainComponent))
+	{
+		BTComp->StopTree(EBTStopMode::Safe);
+	}
+
+	StopMovement();
+
+	// AcceptanceRadius เล็ก ๆ เพื่อให้เดินเข้าไปใน Box จริง ๆ (Box ครึ่งกว้าง 300)
+	MoveToActor(EscapeTarget, /*AcceptanceRadius=*/50.f, /*bStopOnOverlap=*/false);
 }
