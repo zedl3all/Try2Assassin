@@ -11,6 +11,7 @@
 #include "GuardAIController.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "EngineUtils.h"
 #include "GameFramework/PlayerState.h"
 
 ATry2AssassinGameMode::ATry2AssassinGameMode()
@@ -419,22 +420,14 @@ void ATry2AssassinGameMode::AlertAllGuards(AActor* HuntTarget, const FVector& Al
 
 void ATry2AssassinGameMode::ExecuteAlertAllGuards(AActor* HuntTarget)
 {
-	if (!HasAuthority() || !IsValid(HuntTarget))
+	if (!HasAuthority() || !IsValid(HuntTarget) || !IsValid(GuardActors[0]))
 	{
 		return;
 	}
-
-	TArray<AActor*> FoundGuards;
-	UGameplayStatics::GetAllActorsOfClass(
-		GetWorld(),
-		AGuardCharacter::StaticClass(),
-		FoundGuards
-	);
-
+	
 	int32 AlertedCount = 0;
-	for (AActor* Actor : FoundGuards)
+	for (AGuardCharacter* Guard : GuardActors)
 	{
-		AGuardCharacter* Guard = Cast<AGuardCharacter>(Actor);
 		if (!IsValid(Guard)) { continue; }
 
 		// เพิ่มความเร็วให้ Guard เปลี่ยนเป็นวิ่ง
