@@ -489,6 +489,29 @@ void ATry2AssassinGameMode::HandleTargetTakedown(ACharacter* Killer, ACharacter*
 			1.20f,
 			false
 		);
+		
+		Killer->Tags.Add(FName("Assassin"));
+	}
+	
+	if (Target->ActorHasTag(TEXT("Assassin")) && GS && GS->MatchPhase == EMatchPhase::Escape)
+	{
+		// 1. ตั้ง Timer ทำลาย Target หลังจบจังหวะโดน
+		TWeakObjectPtr<ACharacter> WeakTarget = Target;
+
+		FTimerHandle DestroyTimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(
+			DestroyTimerHandle,
+			[WeakTarget]()
+			{
+				if (WeakTarget.IsValid())
+				{
+					WeakTarget->Destroy();
+				}
+			},
+			1.20f,
+			false
+		);
+		
 	}
 
 	// 2. รอจน Animation ของ Attacker เล่นจบ แล้วคืนค่าการเดิน
@@ -507,4 +530,6 @@ void ATry2AssassinGameMode::HandleTargetTakedown(ACharacter* Killer, ACharacter*
 		3.67f,
 		false
 	);
+	
+	
 }

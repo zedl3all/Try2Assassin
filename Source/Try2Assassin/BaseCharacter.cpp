@@ -228,7 +228,7 @@ void ABaseCharacter::ServerTakedown_Implementation()
 	BestTarget->ApplyTakedown();
 
 	if (BestTarget->CharacterState == ECharacterState::Takedown
-		&& BestTarget->ActorHasTag(TEXT("MainTarget")))
+		&& (BestTarget->ActorHasTag(TEXT("MainTarget")) || BestTarget->ActorHasTag(TEXT("Assassin"))))
 	{
 		if (AController* KillerController = GetController())
 		{
