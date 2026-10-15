@@ -25,7 +25,7 @@ public:
 	// จะถูกเรียกจากระบบสังหารในอนาคต (บน server เท่านั้น)
 	void HandleTargetKilled(AController* Killer);
 	void HandleReachedSafeZone(AController* Player);
-	
+
 	void HandleTargetTakedown(ACharacter* Killer, ACharacter* Target);
 
 	// ===== เพิ่มใหม่: คำสั่งทดสอบ =====
@@ -49,6 +49,8 @@ public:
 		TSubclassOf<AGuardCharacter> InGuardClass,
 		const FVector& SpawnLocation
 	);
+	
+	void HandleGameOver();
 
 private:
 	void StartAssassinationPhase();
@@ -70,15 +72,14 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "AI")
 	int32 GuardCount = 7;
-	
+
 	// สั่ง Guard ทั้งเมืองให้ตื่นตัว
 	void AlertAllGuards(AActor* HuntTarget, const FVector& AlertLocation);
-	
+
 	// รายการ Guard ทั้งหมดที่ spawn ไว้
 	UPROPERTY()
 	TArray<TObjectPtr<AGuardCharacter>> GuardActors;
-	
+
 	// 🔹 เพิ่มฟังก์ชันนี้เพื่อใช้รับช่วงต่อหลังหมดเวลา Delay
 	void ExecuteAlertAllGuards(AActor* HuntTarget);
-
 };

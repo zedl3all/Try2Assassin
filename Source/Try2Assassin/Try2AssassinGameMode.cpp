@@ -533,3 +533,8 @@ void ATry2AssassinGameMode::HandleTargetTakedown(ACharacter* Killer, ACharacter*
 	
 	
 }
+
+void ATry2AssassinGameMode::HandleGameOver()
+{
+	UGameplayStatics::SetGamePaused(GetWorld(), true);
+}

@@ -19,7 +19,7 @@ void ATry2AssassinGameState::SetMatchPhase(EMatchPhase NewPhase)
 
 	const EMatchPhase Old = MatchPhase;
 	MatchPhase = NewPhase;
-	
+
 	ApplyPhaseToWorld(NewPhase);
 
 	// OnRep ไม่ทำงานบน server (กฎ Lab 5) จึงต้องเรียกเองให้ host เห็นด้วย
@@ -70,10 +70,22 @@ void ATry2AssassinGameState::OnTargetKilled(APlayerState* Killer)
 		return;
 	}
 
-	bTargetKilled = true;
-	Assassin = Killer;
+	if (!bTargetKilled)
+	{
+		bTargetKilled = true;
+		Assassin = Killer;
+		SetMatchPhase(EMatchPhase::Escape);
+	}
+	else
+	{
+		SetMatchPhase(EMatchPhase::Finished);
 
-	SetMatchPhase(EMatchPhase::Escape);
+		if (ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
+		{
+			GM->HandleGameOver();
+		}
+	}
+
 
 	UE_LOG(
 		LogTemp,
@@ -82,6 +94,7 @@ void ATry2AssassinGameState::OnTargetKilled(APlayerState* Killer)
 		*Killer->GetPlayerName()
 	);
 }
+
 void ATry2AssassinGameState::ApplyPhaseToWorld(EMatchPhase NewPhase)
 {
 	if (!HasAuthority()) { return; }
