@@ -255,6 +255,12 @@ void ATry2AssassinGameMode::HandleTargetKilled(AController* Killer)
 	if (Killer)
 	{
 		KillerPlayerState = Killer->GetPlayerState<APlayerState>();
+
+		ABaseCharacter* KillerPlayer = Cast<ABaseCharacter>(Killer->GetCharacter());
+		if (KillerPlayer)
+		{
+			KillerPlayer->bCanBeTakedown = true;
+		}
 	}
 
 	if (!KillerPlayerState)
@@ -424,7 +430,7 @@ void ATry2AssassinGameMode::ExecuteAlertAllGuards(AActor* HuntTarget)
 	{
 		return;
 	}
-	
+
 	int32 AlertedCount = 0;
 	for (AGuardCharacter* Guard : GuardActors)
 	{
@@ -433,7 +439,7 @@ void ATry2AssassinGameMode::ExecuteAlertAllGuards(AActor* HuntTarget)
 		// เพิ่มความเร็วให้ Guard เปลี่ยนเป็นวิ่ง
 		if (Guard->GetCharacterMovement())
 		{
-			Guard->GetCharacterMovement()->MaxWalkSpeed = 600.0f;
+			Guard->GetCharacterMovement()->MaxWalkSpeed = 700.0f;
 		}
 
 		AGuardAIController* GuardAI = Cast<AGuardAIController>(Guard->GetController());

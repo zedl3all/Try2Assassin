@@ -38,10 +38,6 @@ protected:
 
 	void HandleTakedownInput(const FInputActionValue& Value);
 
-	// ตัวละครนี้สามารถถูก Takedown ได้หรือไม่
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
-	bool bCanBeTakedown = false;
-
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -50,6 +46,9 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	/////////////////////////////////////////////////////////////////
+	// ตัวละครนี้สามารถถูก Takedown ได้หรือไม่
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
+	bool bCanBeTakedown = false;
 
 	// สถานะปัจจุบันของตัวละคร
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Character")

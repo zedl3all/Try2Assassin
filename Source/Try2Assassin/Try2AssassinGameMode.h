@@ -55,7 +55,7 @@ private:
 	TSubclassOf<AVillagerCharacter> VillagerClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "AI")
-	int32 VillagerCount = 24;
+	int32 VillagerCount = 22;
 
 	UPROPERTY(EditDefaultsOnly, Category = "AI")
 	TSubclassOf<ATargetCharacter> TargetClass;
@@ -67,7 +67,7 @@ private:
 	TSubclassOf<AGuardCharacter> GuardClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "AI")
-	int32 GuardCount = 5;
+	int32 GuardCount = 7;
 	
 	// สั่ง Guard ทั้งเมืองให้ตื่นตัว
 	void AlertAllGuards(AActor* HuntTarget, const FVector& AlertLocation);

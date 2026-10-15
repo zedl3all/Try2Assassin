@@ -32,9 +32,9 @@ void AVillagerCharacter::StartPanicEscape(float PanicSpeed)
 	if (Zones.IsEmpty()) { return; }
 
 	// สุ่มเลือก 1 อัน (ใกล้หรือไกลก็ได้ เท่ากันหมด)
-	AActor* Chosen = Zones[FMath::RandRange(0, Zones.Num() - 1)];
-
-	AI->StartEscape(Chosen);
+	// AActor* Chosen = Zones[FMath::RandRange(0, Zones.Num() - 1)];
+	//
+	// AI->StartEscape(Chosen);
 
 	AActor* Nearest = nullptr;
 	float BestDistSq = TNumericLimits<float>::Max();
