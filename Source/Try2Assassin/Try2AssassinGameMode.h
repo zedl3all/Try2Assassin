@@ -25,6 +25,8 @@ public:
 	// จะถูกเรียกจากระบบสังหารในอนาคต (บน server เท่านั้น)
 	void HandleTargetKilled(AController* Killer);
 	void HandleReachedSafeZone(AController* Player);
+	
+	void HandleTargetTakedown(ACharacter* Killer, ACharacter* Target);
 
 	// ===== เพิ่มใหม่: คำสั่งทดสอบ =====
 	UFUNCTION(Exec)

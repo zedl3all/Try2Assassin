@@ -234,6 +234,7 @@ void ABaseCharacter::ServerTakedown_Implementation()
 		{
 			if (ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
 			{
+				GM->HandleTargetTakedown(this, BestTarget); // ต้องอยู่ข้างบน TargetKill
 				GM->HandleTargetKilled(KillerController);
 			}
 		}
@@ -247,48 +248,12 @@ void ABaseCharacter::ServerTakedown_Implementation()
 		}
 	}
 
-	//Lock Movement
-	GetCharacterMovement()->DisableMovement();
-	BestTarget->GetCharacterMovement()->DisableMovement();
-
 	MulticastPlayTakedownAnimation(
 		BestTarget,
 		GetActorRotation(),
 		BestTarget->GetActorRotation()
 	);
 	MulticastPlayHitFX(BestTarget->GetActorLocation());
-
-	// Destroy Target ตอนถึงจังหวะโดน
-	FTimerHandle DestroyTimerHandle;
-
-	GetWorldTimerManager().SetTimer(
-		DestroyTimerHandle,
-		[BestTarget]()
-		{
-			if (IsValid(BestTarget))
-			{
-				BestTarget->Destroy();
-			}
-		},
-		1.20f,
-		false
-	);
-
-	// รอจน Animation ของ Attacker เล่นจบ
-	FTimerHandle MovementTimerHandle;
-
-	GetWorldTimerManager().SetTimer(
-		MovementTimerHandle,
-		[this]()
-		{
-			if (IsValid(this) && GetCharacterMovement())
-			{
-				GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-			}
-		},
-		3.67f,
-		false
-	);
 
 	UE_LOG(
 		LogTemp,

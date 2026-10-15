@@ -453,3 +453,58 @@ void ATry2AssassinGameMode::ExecuteAlertAllGuards(AActor* HuntTarget)
 	       TEXT("CITY ALERT! %d guards hunting %s"),
 	       AlertedCount, *HuntTarget->GetName());
 }
+
+void ATry2AssassinGameMode::HandleTargetTakedown(ACharacter* Killer, ACharacter* Target)
+{
+	if (!Target || !Killer) return;
+
+	// Lock การเคลื่อนไหวของทั้งสองฝ่าย
+	if (Killer->GetCharacterMovement())
+	{
+		Killer->GetCharacterMovement()->DisableMovement();
+	}
+	if (Target->GetCharacterMovement())
+	{
+		Target->GetCharacterMovement()->DisableMovement();
+	}
+
+	ATry2AssassinGameState* GS = GetGameState<ATry2AssassinGameState>();
+
+	// กรณีเป็น Target หลักเป็น Bot
+	if (Target->ActorHasTag(TEXT("MainTarget")) && GS && GS->MatchPhase == EMatchPhase::Assassination)
+	{
+		// 1. ตั้ง Timer ทำลาย Target หลังจบจังหวะโดน
+		TWeakObjectPtr<ACharacter> WeakTarget = Target;
+
+		FTimerHandle DestroyTimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(
+			DestroyTimerHandle,
+			[WeakTarget]()
+			{
+				if (WeakTarget.IsValid())
+				{
+					WeakTarget->Destroy();
+				}
+			},
+			1.20f,
+			false
+		);
+	}
+
+	// 2. รอจน Animation ของ Attacker เล่นจบ แล้วคืนค่าการเดิน
+	TWeakObjectPtr<ACharacter> WeakKiller = Killer;
+	FTimerHandle MovementTimerHandle;
+
+	GetWorld()->GetTimerManager().SetTimer(
+		MovementTimerHandle,
+		[WeakKiller]()
+		{
+			if (WeakKiller.IsValid() && WeakKiller->GetCharacterMovement())
+			{
+				WeakKiller->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+			}
+		},
+		3.67f,
+		false
+	);
+}
