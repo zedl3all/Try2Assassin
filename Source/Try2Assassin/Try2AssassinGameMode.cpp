@@ -119,7 +119,7 @@ void ATry2AssassinGameMode::BeginPlay()
 					if (bFoundLocation)
 					{
 						FVector SpawnLocation = RandomLocation.Location;
-						SpawnLocation.Z += 30.0f;
+						SpawnLocation.Z += 50.0f;
 
 						SpawnVillager(VillagerClass, SpawnLocation);
 					}
