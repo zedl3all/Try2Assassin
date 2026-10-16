@@ -516,7 +516,7 @@ void ATry2AssassinGameMode::ExecuteAlertAllGuards(AActor* HuntTarget)
 		// เพิ่มความเร็วให้ Guard เปลี่ยนเป็นวิ่ง
 		if (Guard->GetCharacterMovement())
 		{
-			Guard->GetCharacterMovement()->MaxWalkSpeed = 700.0f;
+			Guard->GetCharacterMovement()->MaxWalkSpeed = 800.0f;
 		}
 
 		AGuardAIController* GuardAI = Cast<AGuardAIController>(Guard->GetController());
