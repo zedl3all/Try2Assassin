@@ -13,8 +13,11 @@
 // Sets default values
 ABaseCharacter::ABaseCharacter()
 {
-	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	// ตัวละครกลุ่มนี้ไม่มี logic ใน Tick เลย (ไม่มี Tick override ทั้งใน C++ และ Blueprint)
+	// เดิมเปิด Tick ทุกเฟรมให้ตัวละครทุกตัว (~30 ตัว: ชาวบ้าน/การ์ด/เป้าหมาย/ผู้เล่น)
+	// ซึ่งกิน CPU เปล่า ๆ ทุกเฟรม -> ปิดเพื่อลด Frame/Game Lag
+	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	bReplicates = true;
 	CharacterState = ECharacterState::Normal;
@@ -28,18 +31,6 @@ ABaseCharacter::ABaseCharacter()
 	TakeDownReach->SetCollisionResponseToAllChannels(ECR_Ignore);
 	TakeDownReach->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	TakeDownReach->SetGenerateOverlapEvents(true);
-}
-
-// Called when the game starts or when spawned
-void ABaseCharacter::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
-// Called every frame
-void ABaseCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
 }
 
 // Called to bind functionality to input

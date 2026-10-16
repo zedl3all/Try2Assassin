@@ -71,7 +71,9 @@ EBTNodeResult::Type UBTTask_RandomPatrolPoint::ExecuteTask(
 		TargetPoint->GetActorLocation()
 	);
 
-	UE_LOG(LogTemp, Warning,
+	// ใช้ Verbose แทน Warning: log นี้ถูกเรียกบ่อยมากต่อ AI 1 ตัว
+	// (และเมื่อเป็น Verbose ตัวอาร์กิวเมนต์จะไม่ถูก evaluate เมื่อไม่เปิด log)
+	UE_LOG(LogTemp, Verbose,
 	       TEXT("RandomPatrolPoint: Selected point %d at %s"),
 	       RandomIndex, *TargetPoint->GetActorLocation().ToString());
 

@@ -35,7 +35,7 @@ void AGuardAIController::HuntPlayer(AActor* PlayerTarget)
 		BB->SetValueAsBool(TEXT("bIsAlerted"), true);
 		BB->SetValueAsBool(TEXT("bIsHunting"), true);
 
-		UE_LOG(LogTemp, Warning, TEXT("Guard %s is now hunting player!"), *GetName());
+		UE_LOG(LogTemp, Verbose, TEXT("Guard %s is now hunting player!"), *GetName());
 	}
 }
 
@@ -47,7 +47,7 @@ void AGuardAIController::ResumePatrol()
 		BB->SetValueAsBool(TEXT("bIsHunting"), false);
 		BB->ClearValue(TEXT("TargetActor"));
 
-		UE_LOG(LogTemp, Warning, TEXT("Guard %s resumed patrol."), *GetName());
+		UE_LOG(LogTemp, Verbose, TEXT("Guard %s resumed patrol."), *GetName());
 	}
 }
 
@@ -59,7 +59,7 @@ void AGuardAIController::AlertToLocation(const FVector& AlertLocation)
 		BB->SetValueAsBool(TEXT("bIsAlerted"), true);
 		BB->SetValueAsBool(TEXT("bIsHunting"), false); // ⬅️ ยังไม่ล่า จนกว่าจะ "เห็น"
 
-		UE_LOG(LogTemp, Warning,
+		UE_LOG(LogTemp, Verbose,
 		       TEXT("Guard %s alerted to %s"), *GetName(), *AlertLocation.ToString());
 	}
 }
