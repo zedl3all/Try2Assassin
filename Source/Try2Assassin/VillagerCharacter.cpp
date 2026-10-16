@@ -1,8 +1,9 @@
 ﻿#include "VillagerCharacter.h"
 #include "MyAIController.h"
 #include "EscapeZone.h"
-#include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Engine/World.h"
+#include "Try2AssassinGameMode.h"
 
 
 AVillagerCharacter::AVillagerCharacter()
@@ -25,29 +26,12 @@ void AVillagerCharacter::StartPanicEscape(float PanicSpeed)
 	AMyAIController* AI = Cast<AMyAIController>(GetController());
 	if (!AI) { return; }
 
-	// หา EscapeZone ทั้งหมด
-	TArray<AActor*> Zones;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEscapeZone::StaticClass(), Zones);
+	// ใช้ EscapeZone ที่ GameMode cache ไว้ตอน BeginPlay
+	// (เดิมชาวบ้านแต่ละตัวเรียก GetAllActorsOfClass เอง = สแกนโลกซ้ำ 22 ครั้ง)
+	ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>();
+	if (!GM) { return; }
 
-	if (Zones.IsEmpty()) { return; }
-
-	// สุ่มเลือก 1 อัน (ใกล้หรือไกลก็ได้ เท่ากันหมด)
-	// AActor* Chosen = Zones[FMath::RandRange(0, Zones.Num() - 1)];
-	//
-	// AI->StartEscape(Chosen);
-
-	AActor* Nearest = nullptr;
-	float BestDistSq = TNumericLimits<float>::Max();
-	for (AActor* Z : Zones)
-	{
-		const float D = FVector::DistSquared(Z->GetActorLocation(), GetActorLocation());
-		if (D < BestDistSq)
-		{
-			BestDistSq = D;
-			Nearest = Z;
-		}
-	}
-
+	AEscapeZone* Nearest = GM->FindNearestEscapeZone(GetActorLocation());
 	if (!Nearest) { return; }
 
 	AI->StartEscape(Nearest);

@@ -5,10 +5,10 @@
 #include "BaseCharacter.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "Engine/TargetPoint.h"
-#include "Kismet/GameplayStatics.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "Navigation/PathFollowingComponent.h"
+#include "Engine/World.h"
+#include "Try2AssassinGameMode.h"
 
 AMyAIController::AMyAIController(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -32,24 +32,22 @@ void AMyAIController::OnPossess(APawn* InPawn)
 		return;
 	}
 
-	// หา TargetPoints ทั้งหมดในแมพ
-	TArray<AActor*> FoundTargetPoints;
-	UGameplayStatics::GetAllActorsOfClass(
-		GetWorld(),
-		ATargetPoint::StaticClass(),
-		FoundTargetPoints
-	);
-	
-	
+	// ดึง PatrolPoint จาก cache ของ GameMode แทนการสแกนโลกเองต่อ AI 1 ตัว
+	// (เดิม GetAllActorsOfClass ถูกเรียก 1 ครั้งต่อ AI = 30 ครั้งต่อการ spawn ชุด)
 	ABaseCharacter* BasePawn = Cast<ABaseCharacter>(InPawn);
 	if (BasePawn)
 	{
 		BasePawn->PatrolPoints.Reset();
-		for (AActor* Point : FoundTargetPoints)
+
+		if (ATry2AssassinGameMode* GM =
+			GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
 		{
-			if (IsValid(Point))
+			for (const TObjectPtr<AActor>& Point : GM->GetCachedPatrolPoints())
 			{
-				BasePawn->PatrolPoints.Add(Point);
+				if (IsValid(Point))
+				{
+					BasePawn->PatrolPoints.Add(Point);
+				}
 			}
 		}
 	}

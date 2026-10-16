@@ -13,6 +13,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerState.h"
+#include "Engine/TargetPoint.h"
+#include "EscapeZone.h"
 
 ATry2AssassinGameMode::ATry2AssassinGameMode()
 {
@@ -94,109 +96,21 @@ void ATry2AssassinGameMode::BeginPlay()
 
 	if (HasAuthority())
 	{
-		UNavigationSystemV1* NavSystem =
-			FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+		// หา TargetPoint / EscapeZone ทั้งหมดครั้งเดียว แล้ว cache ไว้ให้ AI ทุกตัวใช้ร่วมกัน
+		// (เดิมแต่ละ AI สแกนโลกเอง -> เปลือง CPU)
+		CacheWorldActors();
 
-		if (NavSystem)
-		{
-			const FVector Center = FVector(0.f, 0.f, 0.f);
-			const float SpawnRadius = 3000.f;
-
-			// Spawn Villagers
-			if (VillagerClass)
-			{
-				for (int32 i = 0; i < VillagerCount; ++i)
-				{
-					FNavLocation RandomLocation;
-
-					const bool bFoundLocation =
-						NavSystem->GetRandomReachablePointInRadius(
-							Center,
-							SpawnRadius,
-							RandomLocation
-						);
-
-					if (bFoundLocation)
-					{
-						FVector SpawnLocation = RandomLocation.Location;
-						SpawnLocation.Z += 50.0f;
-
-						SpawnVillager(VillagerClass, SpawnLocation);
-					}
-					else
-					{
-						UE_LOG(
-							LogTemp,
-							Warning,
-							TEXT("Could not find NavMesh location for Villager")
-						);
-					}
-				}
-			}
-
-			//spawn Guard
-			if (GuardClass)
-			{
-				for (int32 i = 0; i < GuardCount; ++i)
-				{
-					FNavLocation RandomLocation;
-
-					const bool bFoundLocation =
-						NavSystem->GetRandomReachablePointInRadius(
-							Center,
-							SpawnRadius,
-							RandomLocation
-						);
-
-					if (bFoundLocation)
-					{
-						FVector SpawnLocation = RandomLocation.Location;
-						SpawnLocation.Z += 30.0f;
-
-						SpawnGuard(GuardClass, SpawnLocation);
-					}
-					else
-					{
-						UE_LOG(
-							LogTemp,
-							Warning,
-							TEXT("Could not find NavMesh location for Guard")
-						);
-					}
-				}
-			}
-
-			// Spawn Target (1 ตัว)
-			if (bSpawnTarget && TargetClass)
-			{
-				FNavLocation RandomLocation;
-
-				const bool bFoundLocation =
-					NavSystem->GetRandomReachablePointInRadius(
-						Center,
-						SpawnRadius,
-						RandomLocation
-					);
-
-				if (bFoundLocation)
-				{
-					FVector SpawnLocation = RandomLocation.Location;
-					SpawnLocation.Z += 30.0f;
-
-					SpawnTarget(TargetClass, SpawnLocation);
-				}
-				else
-				{
-					UE_LOG(
-						LogTemp,
-						Warning,
-						TEXT("Could not find NavMesh location for Target")
-					);
-				}
-			}
-		}
+		// ทยอย spawn AI ทีละตัวด้วย timer แทนการ spawn 30 ตัวรวดในเฟรมเดียว
+		// ซึ่งเดิมทำให้เกมกระตุกตอนเริ่มด่าน
+		GetWorldTimerManager().SetTimer(
+			SpawnQueueTimer,
+			this,
+			&ATry2AssassinGameMode::ProcessSpawnQueue,
+			SpawnInterval,
+			/*bLoop=*/true,
+			/*FirstDelay=*/SpawnInterval
+		);
 	}
-
 
 	// ชั่วคราวสำหรับทดสอบ: เริ่ม Assassination หลัง 2 วินาที
 	FTimerHandle TH;
@@ -207,6 +121,145 @@ void ATry2AssassinGameMode::BeginPlay()
 		2.0f,
 		false
 	);
+}
+
+void ATry2AssassinGameMode::CacheWorldActors()
+{
+	UWorld* World = GetWorld();
+	if (!World) { return; }
+
+	// PatrolPoint (TargetPoint) ทั้งหมด — หาครั้งเดียวให้ AI ทุกตัวใช้ร่วมกัน
+	CachedPatrolPoints.Reset();
+	TArray<AActor*> FoundTargetPoints;
+	UGameplayStatics::GetAllActorsOfClass(
+		World,
+		ATargetPoint::StaticClass(),
+		FoundTargetPoints
+	);
+	for (AActor* Point : FoundTargetPoints)
+	{
+		if (IsValid(Point))
+		{
+			CachedPatrolPoints.Add(Point);
+		}
+	}
+
+	// EscapeZone ทั้งหมด — หาครั้งเดียวให้ชาวบ้านทุกตัวใช้ร่วมกันตอนหนี
+	CachedEscapeZones.Reset();
+	TArray<AActor*> FoundZones;
+	UGameplayStatics::GetAllActorsOfClass(
+		World,
+		AEscapeZone::StaticClass(),
+		FoundZones
+	);
+	for (AActor* Zone : FoundZones)
+	{
+		if (AEscapeZone* EscapeZone = Cast<AEscapeZone>(Zone))
+		{
+			CachedEscapeZones.Add(EscapeZone);
+		}
+	}
+
+	UE_LOG(LogTemp, Log,
+	       TEXT("Cached world actors: %d PatrolPoints, %d EscapeZones"),
+	       CachedPatrolPoints.Num(), CachedEscapeZones.Num());
+}
+
+void ATry2AssassinGameMode::ProcessSpawnQueue()
+{
+	if (!HasAuthority())
+	{
+		GetWorldTimerManager().ClearTimer(SpawnQueueTimer);
+		return;
+	}
+
+	UNavigationSystemV1* NavSystem =
+		FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+
+	// Nav ยังไม่พร้อม ลองใหม่รอบหน้า (กันค้าง: ยอมแพ้หลังลอง ~10 วินาที)
+	if (!NavSystem)
+	{
+		if (++NavRetryCount > 200)
+		{
+			UE_LOG(LogTemp, Error,
+			       TEXT("Spawn: NavMesh not available, aborting AI spawn"));
+			GetWorldTimerManager().ClearTimer(SpawnQueueTimer);
+		}
+		return;
+	}
+	NavRetryCount = 0;
+
+	// ทำทีละตัวต่อการเรียก 1 ครั้ง เพื่อกระจายภาระหลายเฟรม
+
+	// 1) ชาวบ้าน
+	if (SpawnedVillagers < VillagerCount && VillagerClass)
+	{
+		FNavLocation RandomLocation;
+		if (NavSystem->GetRandomReachablePointInRadius(
+			SpawnCenter, SpawnRadius, RandomLocation))
+		{
+			FVector SpawnLocation = RandomLocation.Location;
+			SpawnLocation.Z += 50.0f;
+			SpawnVillager(VillagerClass, SpawnLocation);
+		}
+		++SpawnedVillagers; // นับ attempt เสมอ เพื่อให้คิวจบแน่นอน
+		return;
+	}
+
+	// 2) Guard
+	if (SpawnedGuards < GuardCount && GuardClass)
+	{
+		FNavLocation RandomLocation;
+		if (NavSystem->GetRandomReachablePointInRadius(
+			SpawnCenter, SpawnRadius, RandomLocation))
+		{
+			FVector SpawnLocation = RandomLocation.Location;
+			SpawnLocation.Z += 30.0f;
+			SpawnGuard(GuardClass, SpawnLocation);
+		}
+		++SpawnedGuards;
+		return;
+	}
+
+	// 3) Target (1 ตัว)
+	if (bSpawnTarget && TargetClass && !bTargetSpawned)
+	{
+		FNavLocation RandomLocation;
+		if (NavSystem->GetRandomReachablePointInRadius(
+			SpawnCenter, SpawnRadius, RandomLocation))
+		{
+			FVector SpawnLocation = RandomLocation.Location;
+			SpawnLocation.Z += 30.0f;
+			SpawnTarget(TargetClass, SpawnLocation);
+		}
+		bTargetSpawned = true;
+		return;
+	}
+
+	// spawn ครบหมดแล้ว หยุด timer
+	GetWorldTimerManager().ClearTimer(SpawnQueueTimer);
+	UE_LOG(LogTemp, Log,
+	       TEXT("All AI spawned (Guards=%d)"), GuardActors.Num());
+}
+
+AEscapeZone* ATry2AssassinGameMode::FindNearestEscapeZone(const FVector& From) const
+{
+	AEscapeZone* Nearest = nullptr;
+	float BestDistSq = TNumericLimits<float>::Max();
+
+	for (AEscapeZone* Zone : CachedEscapeZones)
+	{
+		if (!IsValid(Zone)) { continue; }
+
+		const float D = FVector::DistSquared(Zone->GetActorLocation(), From);
+		if (D < BestDistSq)
+		{
+			BestDistSq = D;
+			Nearest = Zone;
+		}
+	}
+
+	return Nearest;
 }
 
 void ATry2AssassinGameMode::StartAssassinationPhase()
