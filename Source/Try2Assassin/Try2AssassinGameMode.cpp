@@ -230,17 +230,13 @@ void ATry2AssassinGameMode::HandleTargetKilled(AController* Killer)
 		return;
 	}
 
-	if (GS->MatchPhase != EMatchPhase::Assassination)
+	if (GS->MatchPhase != EMatchPhase::Assassination && GS->MatchPhase != EMatchPhase::Escape)
 	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("HandleTargetKilled rejected: MatchPhase is not Assassination")
-		);
+		UE_LOG(LogTemp, Warning, TEXT("HandleTargetKilled rejected: MatchPhase is not valid"));
 		return;
 	}
 
-	if (GS->bTargetKilled)
+	if (GS->bTargetKilled && GS->MatchPhase != EMatchPhase::Escape)
 	{
 		UE_LOG(
 			LogTemp,
@@ -259,6 +255,7 @@ void ATry2AssassinGameMode::HandleTargetKilled(AController* Killer)
 		ABaseCharacter* KillerPlayer = Cast<ABaseCharacter>(Killer->GetCharacter());
 		if (KillerPlayer)
 		{
+			// ทำให้ผู้เล่นโดน takedown ได้จากอีกคน
 			KillerPlayer->bCanBeTakedown = true;
 		}
 	}
@@ -280,12 +277,39 @@ void ATry2AssassinGameMode::HandleTargetKilled(AController* Killer)
 	}
 
 	// ให้ GameState เป็นคนจัดการกฎเกมและเปลี่ยน Phase
-	GS->OnTargetKilled(KillerPlayerState);
 
-	APawn* KillerPawn = Killer->GetPawn();
-	const FVector KillLocation = KillerPawn ? KillerPawn->GetActorLocation() : FVector::ZeroVector;
+	if (GS->MatchPhase != EMatchPhase::Escape)
+	{
+		GS->OnTargetKilled(KillerPlayerState);
 
-	AlertAllGuards(KillerPawn, KillLocation);
+		APawn* KillerPawn = Killer->GetPawn();
+		const FVector KillLocation = KillerPawn ? KillerPawn->GetActorLocation() : FVector::ZeroVector;
+
+		AlertAllGuards(KillerPawn, KillLocation);
+	}
+	else
+	{
+		TWeakObjectPtr<APlayerState> WeakKiller = KillerPlayerState;
+		FTimerHandle MovementTimerHandle;
+
+		GetWorld()->GetTimerManager().SetTimer(
+			MovementTimerHandle,
+			[this, WeakKiller, GS]()
+			{
+				// 1. Ensure GS is still valid (if it's a UObject)
+				if (GS)
+				{
+					// 2. Safely get the raw pointer from the weak pointer
+					if (APlayerState* Killer = WeakKiller.Get()) // Also fixed the typo on this line
+					{
+						GS->OnTargetKilled(Killer);
+					}
+				}
+			},
+			3.67f,
+			false
+		);
+	}
 }
 
 void ATry2AssassinGameMode::HandleReachedSafeZone(AController* Player)
@@ -489,10 +513,10 @@ void ATry2AssassinGameMode::HandleTargetTakedown(ACharacter* Killer, ACharacter*
 			1.20f,
 			false
 		);
-		
+
 		Killer->Tags.Add(FName("Assassin"));
 	}
-	
+
 	if (Target->ActorHasTag(TEXT("Assassin")) && GS && GS->MatchPhase == EMatchPhase::Escape)
 	{
 		// 1. ตั้ง Timer ทำลาย Target หลังจบจังหวะโดน
@@ -511,7 +535,6 @@ void ATry2AssassinGameMode::HandleTargetTakedown(ACharacter* Killer, ACharacter*
 			1.20f,
 			false
 		);
-		
 	}
 
 	// 2. รอจน Animation ของ Attacker เล่นจบ แล้วคืนค่าการเดิน
@@ -530,8 +553,6 @@ void ATry2AssassinGameMode::HandleTargetTakedown(ACharacter* Killer, ACharacter*
 		3.67f,
 		false
 	);
-	
-	
 }
 
 void ATry2AssassinGameMode::HandleGameOver()

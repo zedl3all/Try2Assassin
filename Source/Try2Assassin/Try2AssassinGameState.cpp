@@ -60,6 +60,24 @@ void ATry2AssassinGameState::OnTargetKilled(APlayerState* Killer)
 
 	if (bTargetKilled)
 	{
+		if (MatchPhase == EMatchPhase::Escape)
+		{
+			SetMatchPhase(EMatchPhase::Finished);
+
+			if (ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
+			{
+				GM->HandleGameOver();
+			}
+
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("Target killed by: %s"),
+				*Killer->GetPlayerName()
+			);
+			return;
+		}
+		
 		UE_LOG(LogTemp, Warning, TEXT("Rejected: Target already killed"));
 		return;
 	}
@@ -76,16 +94,6 @@ void ATry2AssassinGameState::OnTargetKilled(APlayerState* Killer)
 		Assassin = Killer;
 		SetMatchPhase(EMatchPhase::Escape);
 	}
-	else
-	{
-		SetMatchPhase(EMatchPhase::Finished);
-
-		if (ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
-		{
-			GM->HandleGameOver();
-		}
-	}
-
 
 	UE_LOG(
 		LogTemp,
