@@ -64,10 +64,11 @@ void ATry2AssassinGameState::OnTargetKilled(APlayerState* Killer)
 		{
 			SetMatchPhase(EMatchPhase::Finished);
 
-			if (ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
-			{
-				GM->HandleGameOver();
-			}
+			// Use SetMatchPhase(EMatchPhase::Finished); แทน
+			// if (ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
+			// {
+			// 	GM->HandleGameOver();
+			// }
 
 			UE_LOG(
 				LogTemp,
