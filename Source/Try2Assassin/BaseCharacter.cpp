@@ -8,7 +8,6 @@
 #include "Components/SphereComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "TimerManager.h"
 #include "Try2AssassinGameMode.h"
 
 // Sets default values
@@ -35,34 +34,6 @@ ABaseCharacter::ABaseCharacter()
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
-	USkeletalMeshComponent* MainMesh = GetMesh();
-
-	if (!MainMesh)
-	{
-		return;
-	}
-
-	TArray<USkeletalMeshComponent*> MeshComponents;
-	GetComponents<USkeletalMeshComponent>(MeshComponents);
-
-	for (USkeletalMeshComponent* ChildMesh : MeshComponents)
-	{
-		if (!ChildMesh || ChildMesh == MainMesh)
-		{
-			continue;
-		}
-
-		const FString ComponentName = ChildMesh->GetName();
-
-		if (ComponentName == TEXT("rogue_head") ||
-			ComponentName == TEXT("rogue_hood") ||
-			ComponentName == TEXT("rogue_mantle") ||
-			ComponentName == TEXT("rogue_shoulderpad"))
-		{
-			ChildMesh->SetLeaderPoseComponent(MainMesh);
-		}
-	}
 }
 
 // Called every frame
