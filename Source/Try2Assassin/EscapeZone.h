@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Try2AssassinGameState.h"
 #include "EscapeZone.generated.h"   // ต้องเป็น include สุดท้ายเสมอ
 
 class UBoxComponent;
@@ -18,9 +17,16 @@ class TRY2ASSASSIN_API AEscapeZone : public AActor
 public:
 	AEscapeZone();
 
-	// เปิด/ปิดเอฟเฟกต์ประตูเรืองแสง
+	// เปิด/ปิดโซนนี้ (แสง + ชนได้) — server เท่านั้น
 	UFUNCTION(BlueprintCallable, Category = "EscapeZone")
 	void SetPortalActive(bool bActive);
+
+	// true = โซนนี้ถูกสุ่มให้ใช้งานตอน phase Escape
+	UFUNCTION(BlueprintPure, Category = "EscapeZone")
+	bool IsPortalActive() const { return bPortalActive; }
+
+	virtual void GetLifetimeReplicatedProps(
+		TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -46,6 +52,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> PortalMID;
 
+	// server สุ่มเปิด/ปิดโซนนี้ แล้ว replicate ให้ client เห็นตรงกัน
+	UPROPERTY(ReplicatedUsing = OnRep_PortalActive, BlueprintReadOnly, Category = "EscapeZone")
+	bool bPortalActive = false;
+
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 		AActor* OtherActor,
@@ -55,9 +65,8 @@ protected:
 		const FHitResult& SweepResult);
 
 	UFUNCTION()
-	void HandlePhaseChanged(EMatchPhase OldPhase, EMatchPhase NewPhase);
+	void OnRep_PortalActive();
 
-	void BindToGameState();
-
-	FTimerHandle BindRetryTimer;
+	// ปรับ Mesh / Light / Collision ให้ตรงกับ bPortalActive
+	void ApplyPortalState();
 };

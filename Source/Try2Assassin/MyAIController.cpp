@@ -67,6 +67,29 @@ void AMyAIController::StartEscape(AActor* EscapeTarget)
 
 	StopMovement();
 
+	// ตั้ง flag หลัง StopMovement เพื่อไม่ให้ callback ที่เกิดจากการ abort มาทำลายตัวชาวบ้าน
+	bEscapingToZone = true;
+
 	// AcceptanceRadius เล็ก ๆ เพื่อให้เดินเข้าไปใน Box จริง ๆ (Box ครึ่งกว้าง 300)
 	MoveToActor(EscapeTarget, /*AcceptanceRadius=*/50.f, /*bStopOnOverlap=*/false);
+}
+
+void AMyAIController::OnMoveCompleted(
+	FAIRequestID RequestID, const FPathFollowingResult& Result)
+{
+	Super::OnMoveCompleted(RequestID, Result);
+
+	if (!bEscapingToZone || Result.Code != EPathFollowingResult::Success)
+	{
+		return;
+	}
+
+	// ไปถึง EscapeZone แล้ว -> ชาวบ้านหายไปจากฉาก
+	// (ไม่พึ่ง Box overlap เพราะโซนที่ไม่ active ก็ยังต้องดูดชาวบ้านหาย)
+	bEscapingToZone = false;
+
+	if (APawn* P = GetPawn())
+	{
+		P->Destroy();
+	}
 }

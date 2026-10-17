@@ -9,6 +9,7 @@
 #include "VillagerCharacter.h"
 #include "UObject/ConstructorHelpers.h"
 #include "TimerManager.h"
+#include "Net/UnrealNetwork.h"
 
 AEscapeZone::AEscapeZone()
 {
@@ -69,36 +70,34 @@ void AEscapeZone::BeginPlay()
 	{
 		Box->OnComponentBeginOverlap.AddDynamic(this, &AEscapeZone::OnOverlapBegin);
 	}
-
-	BindToGameState();
 }
 
-void AEscapeZone::BindToGameState()
+void AEscapeZone::GetLifetimeReplicatedProps(
+	TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-	// GameState อาจยังไม่ replicate มาถึง client ตอน BeginPlay จึงลองซ้ำจนกว่าจะเจอ
-	ATry2AssassinGameState* GS = GetWorld()->GetGameState<ATry2AssassinGameState>();
-	if (!GS)
-	{
-		GetWorldTimerManager().SetTimer(BindRetryTimer, this,
-			&AEscapeZone::BindToGameState, 0.2f, false);
-		return;
-	}
-
-	GS->OnMatchPhaseChanged.AddUniqueDynamic(this, &AEscapeZone::HandlePhaseChanged);
-
-	// เผื่อ client เข้าเกมทีหลังตอนที่ phase เป็น Escape ไปแล้ว
-	SetPortalActive(GS->MatchPhase == EMatchPhase::Escape);
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AEscapeZone, bPortalActive);
 }
 
-void AEscapeZone::HandlePhaseChanged(EMatchPhase OldPhase, EMatchPhase NewPhase)
+void AEscapeZone::OnRep_PortalActive()
 {
-	SetPortalActive(NewPhase == EMatchPhase::Escape);
+	ApplyPortalState();
 }
 
 void AEscapeZone::SetPortalActive(bool bActive)
 {
-	PortalMesh->SetVisibility(bActive);
-	PortalLight->SetVisibility(bActive);
+	// server เป็นคนตัดสิน แล้ว replicate ไป client
+	if (!HasAuthority()) { return; }
+
+	bPortalActive = bActive;
+	ApplyPortalState(); // listen server ไม่เรียก OnRep จึงต้อง apply เอง
+}
+
+void AEscapeZone::ApplyPortalState()
+{
+	// คุมแค่การมองเห็น ส่วน collision เปิดตลอดเพื่อให้ชาวบ้านวิ่งเข้าแล้วหายได้
+	if (PortalMesh) { PortalMesh->SetVisibility(bPortalActive); }
+	if (PortalLight) { PortalLight->SetVisibility(bPortalActive); }
 }
 
 void AEscapeZone::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
@@ -108,7 +107,7 @@ void AEscapeZone::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 	bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	// ชาวบ้านวิ่งเข้าโซน -> หายไป
+	// ชาวบ้านวิ่งเข้าโซน -> หายไป (ทุกโซน ไม่ว่าถูกสุ่มให้ active หรือไม่)
 	if (AVillagerCharacter* Villager = Cast<AVillagerCharacter>(OtherActor))
 	{
 		Villager->Destroy();
@@ -117,6 +116,9 @@ void AEscapeZone::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 
 	APawn* P = Cast<APawn>(OtherActor);
 	if (!P || !P->GetController()) { return; }
+
+	// ผู้เล่นชนะได้เฉพาะโซนที่ถูกเปิด (active) เท่านั้น
+	if (!bPortalActive) { return; }
 
 	if (ATry2AssassinGameMode* GM = GetWorld()->GetAuthGameMode<ATry2AssassinGameMode>())
 	{

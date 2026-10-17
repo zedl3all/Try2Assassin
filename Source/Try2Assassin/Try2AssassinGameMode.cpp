@@ -100,6 +100,13 @@ void ATry2AssassinGameMode::BeginPlay()
 		// (เดิมแต่ละ AI สแกนโลกเอง -> เปลือง CPU)
 		CacheWorldActors();
 
+		// ผูกกับ GameState เพื่อรู้ว่าเข้า phase Escape แล้วค่อยสุ่มเปิดโซน
+		if (ATry2AssassinGameState* GS = GetGameState<ATry2AssassinGameState>())
+		{
+			GS->OnMatchPhaseChanged.AddUniqueDynamic(
+				this, &ATry2AssassinGameMode::HandleMatchPhaseChanged);
+		}
+
 		// ทยอย spawn AI ทีละตัวด้วย timer แทนการ spawn 30 ตัวรวดในเฟรมเดียว
 		// ซึ่งเดิมทำให้เกมกระตุกตอนเริ่มด่าน
 		GetWorldTimerManager().SetTimer(
@@ -249,6 +256,7 @@ AEscapeZone* ATry2AssassinGameMode::FindNearestEscapeZone(const FVector& From) c
 
 	for (AEscapeZone* Zone : CachedEscapeZones)
 	{
+		// ชาวบ้านวิ่งไปโซนที่ใกล้ที่สุดเสมอ ไม่สนว่าโซนนั้นถูกเปิด (active) หรือไม่
 		if (!IsValid(Zone)) { continue; }
 
 		const float D = FVector::DistSquared(Zone->GetActorLocation(), From);
@@ -260,6 +268,43 @@ AEscapeZone* ATry2AssassinGameMode::FindNearestEscapeZone(const FVector& From) c
 	}
 
 	return Nearest;
+}
+
+void ATry2AssassinGameMode::HandleMatchPhaseChanged(
+	EMatchPhase OldPhase, EMatchPhase NewPhase)
+{
+	if (NewPhase == EMatchPhase::Escape)
+	{
+		SelectRandomEscapeZones();
+	}
+}
+
+void ATry2AssassinGameMode::SelectRandomEscapeZones()
+{
+	if (!HasAuthority()) { return; }
+
+	TArray<AEscapeZone*> Valid;
+	for (AEscapeZone* Zone : CachedEscapeZones)
+	{
+		if (IsValid(Zone)) { Valid.Add(Zone); }
+	}
+	if (Valid.Num() == 0) { return; }
+
+	// สุ่มด้วย Fisher-Yates แล้วเปิดเฉพาะ N โซนแรก ปิดที่เหลือ
+	const int32 NumActive = FMath::Clamp(ActiveEscapeZoneCount, 1, Valid.Num());
+	for (int32 i = Valid.Num() - 1; i > 0; --i)
+	{
+		const int32 j = FMath::RandRange(0, i);
+		Valid.Swap(i, j);
+	}
+
+	for (int32 i = 0; i < Valid.Num(); ++i)
+	{
+		Valid[i]->SetPortalActive(i < NumActive);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Escape: %d/%d zones active"),
+	       NumActive, Valid.Num());
 }
 
 void ATry2AssassinGameMode::StartAssassinationPhase()

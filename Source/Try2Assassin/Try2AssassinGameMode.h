@@ -8,6 +8,7 @@
 #include "VillagerCharacter.h"
 #include "GuardCharacter.h"
 #include "GuardAIController.h"
+#include "Try2AssassinGameState.h"
 #include "Try2AssassinGameMode.generated.h"
 
 class AEscapeZone;
@@ -62,6 +63,13 @@ public:
 	// ชาวบ้านทุกตัวเรียกผ่านฟังก์ชันนี้แทนการสแกนโลกเอง
 	AEscapeZone* FindNearestEscapeZone(const FVector& From) const;
 
+	// รู้ว่าเข้า phase Escape แล้วจะได้สุ่มเปิด EscapeZone (server เท่านั้น)
+	UFUNCTION()
+	void HandleMatchPhaseChanged(EMatchPhase OldPhase, EMatchPhase NewPhase);
+
+	// สุ่มเลือก EscapeZone ที่จะเปิด แล้วปิดโซนที่เหลือ (server เท่านั้น)
+	void SelectRandomEscapeZones();
+
 private:
 	void StartAssassinationPhase();
 
@@ -115,6 +123,10 @@ private:
 
 	UPROPERTY()
 	TArray<TObjectPtr<AEscapeZone>> CachedEscapeZones;
+
+	// จำนวน EscapeZone ที่จะสุ่มเปิดตอน phase Escape (1 = เปิดโซนเดียว)
+	UPROPERTY(EditDefaultsOnly, Category = "Escape")
+	int32 ActiveEscapeZoneCount = 1;
 
 	// สั่ง Guard ทั้งเมืองให้ตื่นตัว
 	void AlertAllGuards(AActor* HuntTarget, const FVector& AlertLocation);
